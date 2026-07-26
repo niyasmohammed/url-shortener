@@ -1,4 +1,4 @@
-document.getElementById('generateBtn').addEventListener('click', async () => {
+document.getElementById('generateBtn').addEventListener('click', () => {
     const longUrlInput = document.getElementById('longUrl').value.trim();
     const errorElement = document.getElementById('error');
     const resultCard = document.getElementById('resultCard');
@@ -14,32 +14,27 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
         return;
     }
 
-    // Ensure URL has http:// or https://
     let formattedUrl = longUrlInput;
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
         formattedUrl = 'https://' + formattedUrl;
     }
 
     try {
-        // Using a reliable public CORS proxy/API alternative for client-side generation
-        const apiResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(formattedUrl)}`, {
-            method: 'GET',
-            mode: 'cors'
-        });
+        // Generate a unique anchor hash based on the current timestamp and random string
+        const uniqueId = Math.random().toString(36.substring(2, 8) + Date.now().toString(36));
+        
+        // Save the mapping locally in browser storage so it persists for this session
+        localStorage.setItem(uniqueId, formattedUrl);
 
-        if (!apiResponse.ok) throw new Error('Network response was not ok');
+        // Construct a clean self-referencing short link using the current GitHub Pages URL
+        const basePageUrl = window.location.href.split('#')[0];
+        const shortUrl = `${basePageUrl}#${uniqueId}`;
 
-        const shortUrl = await apiResponse.text();
-
-        if (!shortUrl.startsWith('http')) {
-            throw new Error('Invalid response from shortener service');
-        }
-
-        // Display the short URL
+        // Display output
         shortUrlOutput.href = shortUrl;
         shortUrlOutput.textContent = shortUrl;
 
-        // Generate QR code for the short URL
+        // Generate QR Code locally via client script
         new QRCode(qrContainer, {
             text: shortUrl,
             width: 150,
@@ -48,7 +43,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
         resultCard.style.display = 'block';
 
-        // Setup download button
+        // Download handler
         document.getElementById('downloadBtn').onclick = () => {
             const qrImage = qrContainer.querySelector('img');
             if (qrImage) {
@@ -61,40 +56,19 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
     } catch (err) {
         console.error(err);
+        errorElement.textContent = 'Something went wrong. Please try again.';
+    }
+});
 
-        // Fallback: If browser blocks the API via CORS, generate a QR code directly from a fallback free encoder API
-        try {
-            const fallbackShortUrl = `https://is.gd/create.php?format=simple&url=${encodeURIComponent(formattedUrl)}`;
-            const res = await fetch(fallbackShortUrl);
-            const shortUrl = await res.text();
-
-            if (shortUrl.startsWith('http')) {
-                shortUrlOutput.href = shortUrl;
-                shortUrlOutput.textContent = shortUrl;
-
-                new QRCode(qrContainer, {
-                    text: shortUrl,
-                    width: 150,
-                    height: 150,
-                });
-
-                resultCard.style.display = 'block';
-
-                document.getElementById('downloadBtn').onclick = () => {
-                    const qrImage = qrContainer.querySelector('img');
-                    if (qrImage) {
-                        const link = document.createElement('a');
-                        link.href = qrImage.src;
-                        link.download = 'qrcode.png';
-                        link.click();
-                    }
-                };
-                return;
-            }
-        } catch (fallbackErr) {
-            console.error(fallbackErr);
+// Auto-redirect logic if someone visits a shortened link hash
+window.addEventListener('load', () => {
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+        const originalUrl = localStorage.getItem(hash);
+        if (originalUrl) {
+            window.location.replace(originalUrl);
+        } else {
+            document.body.innerHTML = '<div style="text-align:center; margin-top:50px; font-family:sans-serif;"><h2>Link not found or expired!</h2></div>';
         }
-
-        errorElement.textContent = 'Failed to generate short URL. Please check your network or try a different link.';
     }
 });
