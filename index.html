@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener & QR Code Generator</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Include QR Code Library from CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>URL Shortener & QR Code</h1>
-
+        
         <div class="form">
             <input type="url" id="longUrl" placeholder="Enter long URL (https://example.com)" required>
             <button id="generateBtn">Generate</button>
@@ -22,14 +20,17 @@
         <div id="resultCard" class="result-card" style="display: none;">
             <h3>Your Shortened Link:</h3>
             <a id="shortUrlOutput" href="#" target="_blank"></a>
-
+            
             <h3>QR Code:</h3>
             <div id="qrcode"></div>
-
+            
             <button id="downloadBtn" class="download-btn">Download QR Code</button>
         </div>
     </div>
 
+    <!-- Load QRCode library first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Then load your script -->
     <script src="script.js"></script>
 </body>
 </html>
