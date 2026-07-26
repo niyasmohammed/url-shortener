@@ -4,11 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>URL Shortener & QR Code Generator</title>
-  <!-- QRCode.js from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
   </script>
   <style>
-    /* ─── Reset & base ─── */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -214,6 +212,14 @@
       border-radius: 20px;
       margin-top: 8px;
     }
+    .fallback-note {
+      font-size: 0.8rem;
+      color: #856404;
+      background: #fff3cd;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
     .toast {
       position: fixed;
       bottom: 30px;
@@ -282,6 +288,9 @@
 
       <h3 style="margin-top:16px;">QR Code</h3>
       <div id="qrcode"></div>
+      <div id="fallbackNote" class="fallback-note" style="display:none;">
+        ⚠️ Shortening services unavailable – QR code uses the original URL.
+      </div>
 
       <div class="actions">
         <button id="copyBtn" class="copy-btn">
@@ -313,10 +322,12 @@
       const downloadBtn = document.getElementById('downloadBtn');
       const copyBtn = document.getElementById('copyBtn');
       const serviceBadge = document.getElementById('serviceBadge');
+      const fallbackNote = document.getElementById('fallbackNote');
       const toast = document.getElementById('toast');
 
       let toastTimer = null;
       let currentShortUrl = '';
+      let lastOriginalUrl = '';
 
       // ─── helpers ────────────────────────────────────────────────
 
@@ -342,18 +353,14 @@
         shortUrlOutput.href = '#';
         shortUrlOutput.textContent = '';
         serviceBadge.textContent = 'via …';
+        fallbackNote.style.display = 'none';
       }
 
-      function showResult(shortUrl, serviceName) {
-        currentShortUrl = shortUrl;
-        shortUrlOutput.href = shortUrl;
-        shortUrlOutput.textContent = shortUrl;
-        serviceBadge.textContent = 'via ' + (serviceName || 'service');
-
+      function generateQR(text) {
         qrContainer.innerHTML = '';
         try {
           new QRCode(qrContainer, {
-            text: shortUrl,
+            text: text,
             width: 150,
             height: 150,
             colorDark: '#1a1a2e',
@@ -363,6 +370,22 @@
         } catch (qrErr) {
           console.warn('QR generation error:', qrErr);
           qrContainer.innerHTML = '<p style="color:#6c757d;font-size:0.85rem;">⚠️ Could not generate QR</p>';
+        }
+      }
+
+      function showResult(shortUrl, serviceName, isFallback) {
+        currentShortUrl = shortUrl;
+        shortUrlOutput.href = shortUrl;
+        shortUrlOutput.textContent = shortUrl;
+        serviceBadge.textContent = 'via ' + (serviceName || 'service');
+
+        generateQR(shortUrl);
+
+        if (isFallback) {
+          fallbackNote.style.display = 'block';
+          serviceBadge.textContent = '⚠️ No short link – QR for original URL';
+        } else {
+          fallbackNote.style.display = 'none';
         }
 
         resultCard.style.display = 'block';
@@ -454,7 +477,7 @@
         generateBtn.disabled = true;
         generateBtn.textContent = '⏳ Shortening…';
 
-        // Try services in order, stop on first success
+        // Try services in order
         const services = [
           { fn: shortenCleanURI, name: 'CleanURI' },
           { fn: shortenShrtco, name: 'Shrtco' },
@@ -463,15 +486,17 @@
 
         let shortUrl = null;
         let usedService = '';
+        let lastError = '';
 
         for (const svc of services) {
           try {
             shortUrl = await svc.fn(url);
             usedService = svc.name;
-            break; // success
+            break;
           } catch (err) {
             console.warn(`[${svc.name}] failed:`, err.message || err);
-            // continue to next
+            lastError = err.message || err;
+            // continue
           }
         }
 
@@ -479,12 +504,18 @@
         generateBtn.textContent = 'Generate';
 
         if (shortUrl) {
-          showResult(shortUrl, usedService);
+          showResult(shortUrl, usedService, false);
           setError('');
         } else {
-          setError(
-            'Could not generate a short link. Please check that your URL is publicly accessible and try again later.'
-          );
+          // All services failed – generate QR for original URL as fallback
+          const fallbackMsg = 'Could not generate a short link. The QR code below uses your original URL.';
+          setError(fallbackMsg + (lastError ? ` (Last error: ${lastError})` : ''));
+          // Show QR for original URL
+          showResult(url, 'original (fallback)', true);
+          // Also set currentShortUrl to the original URL for copy functionality
+          currentShortUrl = url;
+          // Update badge to indicate fallback
+          serviceBadge.textContent = '⚠️ Fallback – original URL';
         }
       }
 
@@ -566,5 +597,6 @@
 
     })();
   </script>
+
 </body>
 </html>
