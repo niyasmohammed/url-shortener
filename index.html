@@ -100,6 +100,7 @@
       margin-top: 12px;
       min-height: 1.5rem;
       font-weight: 500;
+      word-break: break-word;
     }
     .result-card {
       margin-top: 28px;
@@ -327,7 +328,6 @@
 
       let toastTimer = null;
       let currentShortUrl = '';
-      let lastOriginalUrl = '';
 
       // ─── helpers ────────────────────────────────────────────────
 
@@ -404,7 +404,7 @@
           .finally(() => clearTimeout(id));
       }
 
-      // 1) CleanURI (primary)
+      // 1) CleanURI (POST)
       async function shortenCleanURI(url) {
         const resp = await fetchWithTimeout('https://cleanuri.com/api/v1/shorten', {
           method: 'POST',
@@ -420,7 +420,7 @@
         return data.result_url;
       }
 
-      // 2) Shrtco
+      // 2) Shrtco (GET)
       async function shortenShrtco(url) {
         const resp = await fetchWithTimeout(
           `https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(url)}`, {}, 8000
@@ -436,7 +436,7 @@
         return data.result.full_short_link;
       }
 
-      // 3) is.gd (fallback)
+      // 3) is.gd (GET)
       async function shortenIsgd(url) {
         const resp = await fetchWithTimeout(
           `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`, {}, 8000
@@ -449,6 +449,23 @@
         const trimmed = text.trim();
         if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
           throw new Error('is.gd error: ' + trimmed);
+        }
+        return trimmed;
+      }
+
+      // 4) v.gd (GET) – same API as is.gd, just different domain
+      async function shortenVgd(url) {
+        const resp = await fetchWithTimeout(
+          `https://v.gd/create.php?format=simple&url=${encodeURIComponent(url)}`, {}, 8000
+        );
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(errText || `HTTP ${resp.status}`);
+        }
+        const text = await resp.text();
+        const trimmed = text.trim();
+        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+          throw new Error('v.gd error: ' + trimmed);
         }
         return trimmed;
       }
@@ -477,11 +494,12 @@
         generateBtn.disabled = true;
         generateBtn.textContent = '⏳ Shortening…';
 
-        // Try services in order
+        // Try services in order – added v.gd as fourth
         const services = [
           { fn: shortenCleanURI, name: 'CleanURI' },
           { fn: shortenShrtco, name: 'Shrtco' },
           { fn: shortenIsgd, name: 'is.gd' },
+          { fn: shortenVgd, name: 'v.gd' },
         ];
 
         let shortUrl = null;
@@ -496,7 +514,7 @@
           } catch (err) {
             console.warn(`[${svc.name}] failed:`, err.message || err);
             lastError = err.message || err;
-            // continue
+            // continue to next
           }
         }
 
