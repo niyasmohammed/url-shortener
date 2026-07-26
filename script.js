@@ -20,13 +20,13 @@ document.getElementById('generateBtn').addEventListener('click', () => {
     }
 
     try {
-        // Generate a unique anchor hash based on the current timestamp and random string
-        const uniqueId = Math.random().toString(36.substring(2, 8) + Date.now().toString(36));
+        // Generate a unique ID for local storage
+        const uniqueId = Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
         
-        // Save the mapping locally in browser storage so it persists for this session
+        // Save mapping in browser's localStorage
         localStorage.setItem(uniqueId, formattedUrl);
 
-        // Construct a clean self-referencing short link using the current GitHub Pages URL
+        // Build short link pointing to your own GitHub Pages URL with a hash anchor
         const basePageUrl = window.location.href.split('#')[0];
         const shortUrl = `${basePageUrl}#${uniqueId}`;
 
@@ -34,7 +34,7 @@ document.getElementById('generateBtn').addEventListener('click', () => {
         shortUrlOutput.href = shortUrl;
         shortUrlOutput.textContent = shortUrl;
 
-        // Generate QR Code locally via client script
+        // Generate QR Code locally
         new QRCode(qrContainer, {
             text: shortUrl,
             width: 150,
@@ -60,7 +60,7 @@ document.getElementById('generateBtn').addEventListener('click', () => {
     }
 });
 
-// Auto-redirect logic if someone visits a shortened link hash
+// Auto-redirect logic when visiting the short link hash
 window.addEventListener('load', () => {
     const hash = window.location.hash.substring(1);
     if (hash) {
